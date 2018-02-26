@@ -7,7 +7,7 @@
 #include <process.h>
 #include <future>
 #include <vector>
-#include "comSearch.h"
+
 
 #define NUM_THREAD   2
 
@@ -106,8 +106,6 @@ int _tmain(int argc, _TCHAR* argv[])
 					szCmd = 1; 
 					
 					for (int i = 0; i < szCmd; i++) {
-					    Sleep(300);
-
 						SP->WriteData((char*)g_cmd[0][i], strlen((char*)g_cmd[0][i]));
 
 
@@ -120,9 +118,8 @@ int _tmain(int argc, _TCHAR* argv[])
 					}
 					break;
 				case '2':
-					szCmd = 1; //임시
+					szCmd = 1; 
 					for (int i = 0; i < szCmd; i++) {
-						Sleep(300);
 						SP->WriteData((const char*)g_cmd[1][i], strlen((const char*)g_cmd[1][i]));
 
 						for (int j = 0; j < 10; j++) {
@@ -137,10 +134,7 @@ int _tmain(int argc, _TCHAR* argv[])
 				case '3':
 					szCmd = 1;
 					for (int i = 0; i < szCmd; i++) {
-						//Sleep(2000);
-						Sleep(300);
 						SP->WriteData((const char*)g_cmd[2][i], strlen((const char*)g_cmd[2][i]));
-						//Sleep(3000);
 
 						for (int j = 0; j < 10; j++) {
 							printf("%02x ", (char*)g_cmd[0][i][j]);
@@ -151,9 +145,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 				case '4':
 					for (int i = 0; i < szCmd; i++) {
-						Sleep(300);
 						SP->WriteData((const char*)g_cmd[3][i], strlen((const char*)g_cmd[3][i]));
-						//Sleep(3000);
 
 						for (int j = 0; j < 10; j++) {
 							printf("%02x ", (char*)g_cmd[0][i][j]);
@@ -163,7 +155,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
 					break;
 				}
-				Sleep(1000); //1000 m/s 이하로 줄 경우 , 빠르게 데이터가 입력되었을때 아두이노 내부에서 처리 못하고 원래 상태로 복귀도 못함. 
 			}
 			return 1;
 		
