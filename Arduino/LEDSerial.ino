@@ -359,7 +359,7 @@ public:
                 //-----------------------------------------------
                 case DIGITAL_PINS::SIX:      
                   g_FadeFlag[DIGITAL_PINS::SIX] = false;
-                  g_LedLightFlag[DIGITAL_PINS::FIVE] = true;       
+                  g_LedLightFlag[DIGITAL_PINS::SIX] = true;       
                 break;
                 //-----------------------------------------------
                 case DIGITAL_PINS::SEVEN:    
@@ -407,7 +407,7 @@ public:
                 case DIGITAL_PINS::THREE:    g_LedLightFlag[DIGITAL_PINS::THREE] = false;      break;
                 case DIGITAL_PINS::FOUR:     g_LedLightFlag[DIGITAL_PINS::FOUR] = false;       break;
                 case DIGITAL_PINS::FIVE:     g_LedLightFlag[DIGITAL_PINS::FIVE] = false;       break;
-                case DIGITAL_PINS::SIX:      g_LedLightFlag[DIGITAL_PINS::FIVE] = false;       break;
+                case DIGITAL_PINS::SIX:      g_LedLightFlag[DIGITAL_PINS::SIX] = false;       break;
                 case DIGITAL_PINS::SEVEN:    g_LedLightFlag[DIGITAL_PINS::SEVEN] = false;      break;
                 case DIGITAL_PINS::EIGHT:    g_LedLightFlag[DIGITAL_PINS::EIGHT] = false;      break;
                 case DIGITAL_PINS::NINE:     g_LedLightFlag[DIGITAL_PINS::NINE] = false;       break;
@@ -511,9 +511,9 @@ void setup() {
   Serial.begin(9600); //1bd == 1bps  => 9600bd / 8bit = 1200 character
 
   //Digital pins => general pins
-  pinMode(2, OUTPUT);
-  pinMode(4, OUTPUT);
-  pinMode(7, OUTPUT);
+ // pinMode(2, OUTPUT);
+  //pinMode(4, OUTPUT);
+ // pinMode(7, OUTPUT);
 
   //Digital pins => PWM pins
   pinMode(3, OUTPUT);
@@ -557,13 +557,7 @@ void loop() {
 
 void deviceRun() {
   LED_LIGHT_RUN();
-
-  //allFading(); //작동 안할때도 마구 탄다. for문 102번
-
-  fading_Three_SuperLoop(g_FadeFlag[DIGITAL_PINS::THREE]);
-  fading_Five_SuperLoop(g_FadeFlag[DIGITAL_PINS::FIVE]);
-  fading_Six_SuperLoop(g_FadeFlag[DIGITAL_PINS::SIX]);
-
+  allFading(); 
 }
 
 void allFading()
@@ -611,149 +605,5 @@ void fadingMulti(int pin, int& brightness, int& fadeAmount)
   // reverse the direction of the fading at the ends of the fade:
   if (brightness <= 0 || brightness >= 255) {
     fadeAmount = -fadeAmount;
-  }
-}
-
-
-void fading_Three_SuperLoop(bool beginning)
-{
-
-  long fadingThree_inverval = 20;
-  static long fadingThree_previousMillis = 0;
-  static int brightness_three = 0;
-  static int fadeAmount_three = 5;
-
-
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - fadingThree_previousMillis >= fadingThree_inverval) {
-    fadingThree_previousMillis = currentMillis;
-
-
-    if (beginning == true)
-    {
-      //FadingOne(DIGITAL_PINS::THREE);
-      fadingMulti(DIGITAL_PINS::THREE, brightness_three, fadeAmount_three);
-    }
-    else {
-      analogWrite(DIGITAL_PINS::THREE, 0);
-    }
-  }
-}
-
-void fading_Five_SuperLoop(bool beginning)
-{
-  long fadingFive_inverval = 30;
-  static long fadingFive_previousMillis = 0;
-  static int brightness_five = 0;
-  static int fadeAmount_five = 5;
-
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - fadingFive_previousMillis >= fadingFive_inverval) {
-    fadingFive_previousMillis = currentMillis;
-
-    if (beginning == true)
-    {
-      //FadingOne(DIGITAL_PINS::FIVE);
-      fadingMulti(DIGITAL_PINS::FIVE, brightness_five, fadeAmount_five);
-    }
-    else {
-      analogWrite(DIGITAL_PINS::FIVE, 0);
-    }
-  }
-}
-
-void fading_Six_SuperLoop(bool beginning)
-{
-
-  long fadingSix_inverval = 40;
-  static long fadingSix_previousMillis = 0;
-  static int brightness_six = 0;
-  static int fadeAmount_six = 5;
-
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - fadingSix_previousMillis >= fadingSix_inverval) {
-    fadingSix_previousMillis = currentMillis;
-
-    if (beginning == true)
-    {
-      //FadingOne(DIGITAL_PINS::SIX);
-      fadingMulti(DIGITAL_PINS::SIX, brightness_six, fadeAmount_six);
-    }
-    else {
-      analogWrite(DIGITAL_PINS::SIX, 0);
-    }
-  }
-}
-
-void fading_Nine_SuperLoop(bool beginning)
-{
-
-  long fadingNine_inverval = 40;
-  static long fadingNine_previousMillis = 0;
-  static int brightness_nine = 0;
-  static int fadeAmount_nine = 5;
-
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - fadingNine_previousMillis >= fadingNine_inverval) {
-    fadingNine_previousMillis = currentMillis;
-
-    if (beginning == true)
-    {
-      //FadingOne(DIGITAL_PINS::NINE);
-      fadingMulti(DIGITAL_PINS::NINE, brightness_nine, fadeAmount_nine);
-    }
-    else {
-      analogWrite(DIGITAL_PINS::NINE, 0);
-    }
-  }
-}
-
-void fading_Ten_SuperLoop(bool beginning)
-{
-  long fadingTen_inverval = 40;
-  static long fadingTen_previousMillis = 0;
-  static int brightness_ten = 0;
-  static int fadeAmount_ten = 5;
-
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - fadingTen_previousMillis >= fadingTen_inverval) {
-    fadingTen_previousMillis = currentMillis;
-
-    if (beginning == true)
-    {
-      //FadingOne(DIGITAL_PINS::TEN);
-      fadingMulti(DIGITAL_PINS::TEN, brightness_ten, fadeAmount_ten);
-    }
-    else {
-      analogWrite(DIGITAL_PINS::TEN, 0);
-    }
-  }
-}
-
-void fading_Eleven_SuperLoop(bool beginning)
-{
-  long fadingEleven_inverval = 40;
-  static long fadingEleven_previousMillis = 0;
-  static int brightness_eleven = 0;
-  static int fadeAmount_eleven = 5;
-
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - fadingEleven_previousMillis >= fadingEleven_inverval) {
-    fadingEleven_previousMillis = currentMillis;
-
-    if (beginning == true)
-    {
-      //FadingOne(DIGITAL_PINS::ELEVEN);
-      fadingMulti(DIGITAL_PINS::ELEVEN, brightness_eleven, fadeAmount_eleven);
-    }
-    else {
-      analogWrite(DIGITAL_PINS::ELEVEN, 0);
-    }
   }
 }
