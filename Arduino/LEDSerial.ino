@@ -1,9 +1,7 @@
-#include <stdarg.h>
-
 //-----------------------------------------------------------------------------------
 //전역 변수
 
-enum DIGITAL_PINS { TWO = 2, THREE = 3, FOUR = 4, FIVE = 5, SIX = 6, SEVEN = 7, EIGHT = 8, NINE = 9, TEN = 10, ELEVEN = 11, TWELVE = 12, THIRTEEN = 13 }; 
+enum DIGITAL_PINS { TWO = 2, THREE = 3, FOUR = 4, FIVE = 5, SIX = 6, SEVEN = 7, EIGHT = 8, NINE = 9, TEN = 10, ELEVEN = 11, TWELVE = 12, THIRTEEN = 13 };
 //enum PWM_DPINS { FADE_THREE = 3, FADE_FIVE = 5, FADE_SIX = 6, FADE_NINE = 9, FADE_TEN = 10, FADE_ELEVEN = 11 };
 
 int PWM_DPINS[6] = { DIGITAL_PINS::THREE, DIGITAL_PINS::FIVE, DIGITAL_PINS::SIX, DIGITAL_PINS::NINE, DIGITAL_PINS::TEN, DIGITAL_PINS::ELEVEN };
@@ -15,6 +13,8 @@ const int MAX_DIGITAL_VIRTUAL = 12 + 2; //0,1 번째 인덱스는 사용하지 않음.
 boolean g_FadeFlag[MAX_DIGITAL_VIRTUAL] = { false, };
 boolean g_LedLightFlag[MAX_DIGITAL_VIRTUAL] = { false, };
 
+int g_Cmd = 0;
+
 //---------------------------------------------------------
 
 //초기화(아두이노 기본 함수)
@@ -25,6 +25,80 @@ void serialEvent();
 
 //루프(아두이노 기본 함수)
 void loop();
+
+//----------------------------------------------------------------------------
+class Command
+{
+public:
+  virtual void execute();
+};
+
+class LED_FADE : public Command
+{
+private:
+  static int brightness;
+  static int fadeAmount;
+public:
+  void execute();
+};
+
+int LED_FADE::brightness = 0;
+int LED_FADE::fadeAmount = 5;
+
+void LED_FADE::execute()
+{
+  if (g_FadeFlag[DIGITAL_PINS::THREE])
+    analogWrite(DIGITAL_PINS::THREE, brightness);
+  else
+    analogWrite(DIGITAL_PINS::THREE, 0);
+
+  if (g_FadeFlag[DIGITAL_PINS::FIVE])
+    analogWrite(DIGITAL_PINS::FIVE, brightness);
+  else
+    analogWrite(DIGITAL_PINS::FIVE, 0);
+
+  if (g_FadeFlag[DIGITAL_PINS::SIX])
+    analogWrite(DIGITAL_PINS::SIX, brightness);
+  else
+    analogWrite(DIGITAL_PINS::SIX, 0);
+
+  brightness = brightness + fadeAmount;
+
+  if (brightness <= 0 || brightness >= 255) {
+    fadeAmount = -fadeAmount;
+  }
+  delay(30);
+}
+
+class LED_LIGHT : public Command
+{
+public:
+  void control(int pin, boolean isRun);
+  void execute();
+};
+
+
+void LED_LIGHT::control(int pin, boolean isRun)
+{
+  if (isRun) digitalWrite(pin, HIGH);
+  else digitalWrite(pin, LOW);
+}
+
+void LED_LIGHT::execute()
+{
+  control(DIGITAL_PINS::TWO, g_LedLightFlag[DIGITAL_PINS::TWO]);
+  control(DIGITAL_PINS::THREE, g_LedLightFlag[DIGITAL_PINS::THREE]);
+  control(DIGITAL_PINS::FOUR, g_LedLightFlag[DIGITAL_PINS::FOUR]);
+  control(DIGITAL_PINS::FIVE, g_LedLightFlag[DIGITAL_PINS::FIVE]);
+  control(DIGITAL_PINS::SIX, g_LedLightFlag[DIGITAL_PINS::SIX]);
+  control(DIGITAL_PINS::SEVEN, g_LedLightFlag[DIGITAL_PINS::SEVEN]);
+  control(DIGITAL_PINS::EIGHT, g_LedLightFlag[DIGITAL_PINS::EIGHT]);
+  control(DIGITAL_PINS::NINE, g_LedLightFlag[DIGITAL_PINS::NINE]);
+  control(DIGITAL_PINS::TEN, g_LedLightFlag[DIGITAL_PINS::TEN]);
+  control(DIGITAL_PINS::ELEVEN, g_LedLightFlag[DIGITAL_PINS::ELEVEN]);
+  control(DIGITAL_PINS::TWELVE, g_LedLightFlag[DIGITAL_PINS::TWELVE]);
+  control(DIGITAL_PINS::THIRTEEN, g_LedLightFlag[DIGITAL_PINS::THIRTEEN]);
+}
 
 //----------------------------------------------------------------------------
 class StringManager
@@ -89,32 +163,18 @@ public:
 
   //"7071500A03020407CS" => 이 문자를 반으로 줄여서 2개의 hex문자를 1개의 hex로 변환하는 함수
   static void change_twoChar_oneHex(unsigned char * dest, unsigned char * src) {
-
-    Serial.println(F("change_twoChar_oneHex start"));
     int slen = strlen((char*)src) / sizeof(unsigned char);
     if (slen <= 0) return;
 
     int maxSize = (slen % 2 == 0) ? slen / 2 : slen / 2 + 1;  // 홀수 일때 남는 데이터가 한개 임으로
-    Serial.print(F("maxSize  "));
-    Serial.println(maxSize);
 
     int lastindex = 0;
     for (int i = 0, count = 0; i < maxSize; i++, count += 2) {
       if (i == (maxSize - 1) && (slen % 2)) {
         dest[i] = GetAsciiToNumber(src[count]);
-        Serial.print(F("dest["));
-        Serial.print(i);
-        Serial.print(F("] = "));
-        Serial.print(dest[i], HEX);
         break;
       }
       dest[i] = ((GetAsciiToNumber(src[count]) << 4) + GetAsciiToNumber(src[count + 1]));
-
-      Serial.print(F("dest["));
-      Serial.print(i);
-      Serial.print(F("] = "));
-      Serial.print(dest[i], HEX);
-      Serial.print(F("\n"));
     }
     Serial.println();
     for (int i = 0; i < maxSize; i++) {
@@ -144,58 +204,49 @@ public:
   }
 };
 
-class Command
-{
-public:
-  //새로운 명령어 나오면 추가해야 되는 곳
-  enum formal { HEADER1 = 0x70, HEADER2 = 0x71 };
-  enum led { ON = 0x50, OFF = 0x51, FADE_START = 0x60, FADE_END = 0x61 };
-  enum frame { HEAD1 = 0, HEAD2 = 1, CMD = 2, FRAME_LEN = 3, DATA_LEN = 4, PINNUM_ONE = 5, PINNUM_TWO = 6, PINNUM_THREE = 7, PINNUM_FOUR = 8, PINNUM_FIVE = 9, PINNUM_SIX = 10 }; //현재 LEN은 사용되지 않음.
-};
+//새로운 명령어 나오면 추가해야 되는 곳
+enum formal { HEADER1 = 0x70, HEADER2 = 0x71 };
+enum led { ON = 0x50, OFF = 0x51, FADE_START = 0x60, FADE_END = 0x61 };
+enum frame { HEAD1 = 0, HEAD2 = 1, CMD = 2, FRAME_LEN = 3, DATA_LEN = 4, PINNUM_ONE = 5, PINNUM_TWO = 6, PINNUM_THREE = 7, PINNUM_FOUR = 8, PINNUM_FIVE = 9, PINNUM_SIX = 10 }; //현재 LEN은 사용되지 않음.
+
+
 class CmdManager
 {
 public:
   static bool CheckHeader(unsigned char *serial) {
-    if (serial[Command::frame::HEAD1] == Command::formal::HEADER1 && serial[Command::frame::HEAD2] == Command::formal::HEADER2)
+    if (serial[frame::HEAD1] == formal::HEADER1 && serial[frame::HEAD2] == formal::HEADER2)
     {
       return true;
     }
     return false;
   }
 
-
   //새로운 명령어 나오면 추가해야 되는 곳
   unsigned char GetCommand(unsigned char *serialCmd) {
-    if (serialCmd[Command::frame::HEAD1] != Command::formal::HEADER1 || serialCmd[Command::frame::HEAD2] != Command::formal::HEADER2) return 0;
+    if (serialCmd[frame::HEAD1] != formal::HEADER1 || serialCmd[frame::HEAD2] != formal::HEADER2) return 0;
 
-    switch (serialCmd[Command::frame::CMD]) {
-    case Command::led::ON:
-      return Command::led::ON;
+    switch (serialCmd[frame::CMD]) {
+    case led::ON:
+      return led::ON;
       break;
-    case Command::led::OFF:
-      return Command::led::OFF;
+    case led::OFF:
+      return led::OFF;
       break;
-    case Command::led::FADE_START:
-      return Command::led::FADE_START;
+    case led::FADE_START:
+      return led::FADE_START;
       break;
-    case Command::led::FADE_END:
-      return Command::led::FADE_END;
+    case led::FADE_END:
+      return led::FADE_END;
       break;
     }
 
     return 0;
   }
-  /*
-  unsigned char GetPin(unsigned char * serialCmd) {
-  return serialCmd[Command::frame::PINNUM];
-  }
-  */
-
   int GetFrameLen(unsigned char* serialCmd) {
-    return serialCmd[Command::frame::FRAME_LEN];
+    return serialCmd[frame::FRAME_LEN];
   }
   unsigned char GetDataLen(unsigned char* serialCmd) {
-    return serialCmd[Command::frame::DATA_LEN];
+    return serialCmd[frame::DATA_LEN];
   }
   int * GetPins(unsigned char* serialCmd) {
 
@@ -207,7 +258,7 @@ public:
     int pins[10];
 
     for (int i = 0; i < pinCounts; i++) {
-      pins[i] = serialCmd[(Command::frame::PINNUM_ONE) + i];
+      pins[i] = serialCmd[(frame::PINNUM_ONE) + i];
 
       Serial.print(F("pins["));
       Serial.print(i);
@@ -223,25 +274,13 @@ public:
 class SerialCollector
 {
 private:
-  //static long interval;
-  //static long perviousMillis;
-
   static String collection;
   static int count;
   enum check { HEADER1, HEADER2, COMMAND, };
   const int maxCnt = 40;
-  const int headerSize = 8; //4 * 2 (현재는 가공 되기전 2개의 문자가 하나의 hex이다)
+  const int headerSize = 8; //4 * 2 (현재는 2개의 문자가 한개의 hex문자)
 public:
   void start() {
-    /*
-    //interval밀리 초 마다 데이터를 삭제한다.
-    unsigned long currentMillis = millis();
-    if (currentMillis - perviousMillis >= interval) {
-      perviousMillis = currentMillis;
-      collection = "";
-      count = 0;
-    }
-    */
     while (Serial.available()) {
       char userCmd = (char)Serial.read();
 
@@ -266,34 +305,17 @@ public:
 
       if (count > headerSize)
       {
-        unsigned char g_cmd[20] = { 0, };
-        memset(g_cmd, 0, sizeof(g_cmd));
-        StringManager::change_twoChar_oneHex(g_cmd, (unsigned char*)collection.c_str());
-
-        Serial.println(F("count > 6 "));
+        unsigned char cmd[20] = { 0, };
+        memset(cmd, 0, sizeof(cmd));
+        StringManager::change_twoChar_oneHex(cmd, (unsigned char*)collection.c_str());
 
         uint8_t u8;
-
-
-        int max = g_cmd[Command::frame::FRAME_LEN] * 2;
-
-        Serial.print("out max = ");
-        Serial.println(max);
+        int max = cmd[frame::FRAME_LEN] * 2;
 
         if (max == count)
         {
-          Serial.print("in max = ");
-          Serial.println(count);
-
-          for (int i = 0; i < max / 2; i++) {
-            Serial.print(" ");
-            Serial.print(i);
-            Serial.print(" : ");
-            Serial.print(g_cmd[i], HEX);
-          }
-
           //출력 전용을 cs로 check 비교하기
-          byte  cs = StringManager::checksum(g_cmd, (count / 2 - 2)); //1byte용 제대로 안됨.
+          byte  cs = StringManager::checksum(cmd, (count / 2 - 2)); //1byte용 제대로 안됨.
 
           byte lowNibble = cs & 0x0F;
           byte highNibble = (cs >> 4) & 0x0F;
@@ -303,102 +325,81 @@ public:
           else
             highNibble += '0';
 
-          Serial.print(F("\nCS = "));
-          Serial.print(highNibble, HEX);
-          Serial.print(lowNibble, HEX);
-
-
-          Serial.print(F("\ng_cmd cs = "));
-          Serial.print(g_cmd[count / 2 - 2], HEX);
-          Serial.println(g_cmd[count / 2 - 1], HEX);
-
-
-          if (highNibble == g_cmd[count / 2 - 2] && lowNibble == g_cmd[count / 2 - 1]) {
-            Serial.println(F("Serial Event in"));
-            for (int i = 0; i < (count / 2 - 1); i++)
-            {
-              Serial.print(" ");
-              Serial.print(i);
-              Serial.print(" : ");
-              Serial.print(g_cmd[i], HEX);
-              Serial.print(F(" "));
-
-            }
-            Serial.println();
+          if (highNibble == cmd[count / 2 - 2] && lowNibble == cmd[count / 2 - 1]) {
             CmdManager cmdManager;
-            Serial.println(cmdManager.GetCommand(g_cmd), HEX);
+            Serial.println(cmdManager.GetCommand(cmd), HEX);
 
             int * szPins;
             int maxPins;
-            switch (cmdManager.GetCommand(g_cmd))
+
+            g_Cmd = cmdManager.GetCommand(cmd);
+            switch (g_Cmd)
             {
-            case Command::led::ON:
-              Serial.println(F("Command::led::ON"));
-              maxPins = cmdManager.GetDataLen(g_cmd);
-              szPins = cmdManager.GetPins(g_cmd);
+            case led::ON:
+              maxPins = cmdManager.GetDataLen(cmd);
+              szPins = cmdManager.GetPins(cmd);
               for (int i = 0; i < maxPins; i++)
               {
                 switch (szPins[i]) {
-                case DIGITAL_PINS::TWO:      
-                  g_LedLightFlag[DIGITAL_PINS::TWO] = true;        
-                break;
-                //---------------------------------------------
-                case DIGITAL_PINS::THREE:    
+                case DIGITAL_PINS::TWO:
+                  g_LedLightFlag[DIGITAL_PINS::TWO] = true;
+                  break;
+                  //---------------------------------------------
+                case DIGITAL_PINS::THREE:
                   g_FadeFlag[DIGITAL_PINS::THREE] = false;
-                  g_LedLightFlag[DIGITAL_PINS::THREE] = true; 
-                break;
-                //----------------------------------------------
-                case DIGITAL_PINS::FOUR:     
-                  g_LedLightFlag[DIGITAL_PINS::FOUR] = true;       
-                break;
-                //----------------------------------------------
-                case DIGITAL_PINS::FIVE:     
+                  g_LedLightFlag[DIGITAL_PINS::THREE] = true;
+                  break;
+                  //----------------------------------------------
+                case DIGITAL_PINS::FOUR:
+                  g_LedLightFlag[DIGITAL_PINS::FOUR] = true;
+                  break;
+                  //----------------------------------------------
+                case DIGITAL_PINS::FIVE:
                   g_FadeFlag[DIGITAL_PINS::FIVE] = false;
-                  g_LedLightFlag[DIGITAL_PINS::FIVE] = true;       
-                break;
-                //-----------------------------------------------
-                case DIGITAL_PINS::SIX:      
+                  g_LedLightFlag[DIGITAL_PINS::FIVE] = true;
+                  break;
+                  //-----------------------------------------------
+                case DIGITAL_PINS::SIX:
                   g_FadeFlag[DIGITAL_PINS::SIX] = false;
-                  g_LedLightFlag[DIGITAL_PINS::SIX] = true;       
-                break;
-                //-----------------------------------------------
-                case DIGITAL_PINS::SEVEN:    
-                  g_LedLightFlag[DIGITAL_PINS::SEVEN] = true;      
-                break;
-                //-----------------------------------------------
-                case DIGITAL_PINS::EIGHT:    
-                  g_LedLightFlag[DIGITAL_PINS::EIGHT] = true;      
-                break;
-                //------------------------------------------------
-                case DIGITAL_PINS::NINE:     
+                  g_LedLightFlag[DIGITAL_PINS::SIX] = true;
+                  break;
+                  //-----------------------------------------------
+                case DIGITAL_PINS::SEVEN:
+                  g_LedLightFlag[DIGITAL_PINS::SEVEN] = true;
+                  break;
+                  //-----------------------------------------------
+                case DIGITAL_PINS::EIGHT:
+                  g_LedLightFlag[DIGITAL_PINS::EIGHT] = true;
+                  break;
+                  //------------------------------------------------
+                case DIGITAL_PINS::NINE:
                   g_FadeFlag[DIGITAL_PINS::NINE] = false;
-                  g_LedLightFlag[DIGITAL_PINS::NINE] = true;       
-                  
-                break;
-                case DIGITAL_PINS::TEN:      
+                  g_LedLightFlag[DIGITAL_PINS::NINE] = true;
+
+                  break;
+                case DIGITAL_PINS::TEN:
                   g_FadeFlag[DIGITAL_PINS::TEN] = false;
-                  g_LedLightFlag[DIGITAL_PINS::TEN] = true;        
-                break;
-                //--------------------------------------------------
-                case DIGITAL_PINS::ELEVEN:   
+                  g_LedLightFlag[DIGITAL_PINS::TEN] = true;
+                  break;
+                  //--------------------------------------------------
+                case DIGITAL_PINS::ELEVEN:
                   g_FadeFlag[DIGITAL_PINS::ELEVEN] = false;
-                  g_LedLightFlag[DIGITAL_PINS::ELEVEN] = true;     
-                break;
-                case DIGITAL_PINS::TWELVE:   
-                  g_LedLightFlag[DIGITAL_PINS::TWELVE] = true;     
-                break;
-                case DIGITAL_PINS::THIRTEEN: 
-                  g_LedLightFlag[DIGITAL_PINS::THIRTEEN] = true;   
-                break;
+                  g_LedLightFlag[DIGITAL_PINS::ELEVEN] = true;
+                  break;
+                case DIGITAL_PINS::TWELVE:
+                  g_LedLightFlag[DIGITAL_PINS::TWELVE] = true;
+                  break;
+                case DIGITAL_PINS::THIRTEEN:
+                  g_LedLightFlag[DIGITAL_PINS::THIRTEEN] = true;
+                  break;
                 }
               }
 
               break;
-            case Command::led::OFF:
-              Serial.println(F("Command::led::OFF"));
+            case led::OFF:
 
-              maxPins = cmdManager.GetDataLen(g_cmd);
-              szPins = cmdManager.GetPins(g_cmd);
+              maxPins = cmdManager.GetDataLen(cmd);
+              szPins = cmdManager.GetPins(cmd);
 
               for (int i = 0; i < maxPins; i++)
               {
@@ -420,51 +421,49 @@ public:
 
               break;
 
-            case Command::led::FADE_START:
-              Serial.println(F("FADE_START"));
+            case led::FADE_START:
 
-              maxPins = cmdManager.GetDataLen(g_cmd);
-              szPins = cmdManager.GetPins(g_cmd);
+              maxPins = cmdManager.GetDataLen(cmd);
+              szPins = cmdManager.GetPins(cmd);
 
               for (int i = 0; i < maxPins; i++)
               {
                 pinMode(szPins[i], 0);
                 Serial.print(szPins[i], HEX);
 
-                switch (szPins[i]){
-                case DIGITAL_PINS::THREE:  
+                switch (szPins[i]) {
+                case DIGITAL_PINS::THREE:
                   g_LedLightFlag[DIGITAL_PINS::THREE] = false;
-                  g_FadeFlag[DIGITAL_PINS::THREE] = true;  
-                break;
-                case DIGITAL_PINS::FIVE:   
+                  g_FadeFlag[DIGITAL_PINS::THREE] = true;
+                  break;
+                case DIGITAL_PINS::FIVE:
                   g_LedLightFlag[DIGITAL_PINS::FIVE] = false;
-                  g_FadeFlag[DIGITAL_PINS::FIVE] = true;   
-                break;
-                case DIGITAL_PINS::SIX:    
+                  g_FadeFlag[DIGITAL_PINS::FIVE] = true;
+                  break;
+                case DIGITAL_PINS::SIX:
                   g_LedLightFlag[DIGITAL_PINS::SIX] = false;
-                  g_FadeFlag[DIGITAL_PINS::SIX] = true;    
-                break;
-                case DIGITAL_PINS::NINE:   
+                  g_FadeFlag[DIGITAL_PINS::SIX] = true;
+                  break;
+                case DIGITAL_PINS::NINE:
                   g_LedLightFlag[DIGITAL_PINS::NINE] = false;
-                  g_FadeFlag[DIGITAL_PINS::NINE] = true;   
-                break;
-                case DIGITAL_PINS::TEN:    
+                  g_FadeFlag[DIGITAL_PINS::NINE] = true;
+                  break;
+                case DIGITAL_PINS::TEN:
                   g_LedLightFlag[DIGITAL_PINS::TEN] = false;
-                  g_FadeFlag[DIGITAL_PINS::TEN] = true;    
-                break;
-                case DIGITAL_PINS::ELEVEN: 
+                  g_FadeFlag[DIGITAL_PINS::TEN] = true;
+                  break;
+                case DIGITAL_PINS::ELEVEN:
                   g_LedLightFlag[DIGITAL_PINS::ELEVEN] = false;
-                  g_FadeFlag[DIGITAL_PINS::ELEVEN] = true; 
-                break;
+                  g_FadeFlag[DIGITAL_PINS::ELEVEN] = true;
+                  break;
                 }
               }
 
               break;
-            case Command::led::FADE_END:
-              Serial.println(F("FADE_START"));
+            case led::FADE_END:
 
-              maxPins = cmdManager.GetDataLen(g_cmd);
-              szPins = cmdManager.GetPins(g_cmd);
+              maxPins = cmdManager.GetDataLen(cmd);
+              szPins = cmdManager.GetPins(cmd);
 
               for (int i = 0; i < maxPins; i++)
               {
@@ -494,34 +493,24 @@ public:
         collection = "";
         count = 0;
       }
-
     }
-
-
   }
 };
-
-//long SerialCollector::interval = 800;
-//long SerialCollector::perviousMillis = 0;
 int SerialCollector::count = 0;
 String SerialCollector::collection = "";
-
 
 void setup() {
   Serial.begin(9600); //1bd == 1bps  => 9600bd / 8bit = 1200 character
 
   //Digital pins => general pins
- // pinMode(2, OUTPUT);
+  // pinMode(2, OUTPUT);
   //pinMode(4, OUTPUT);
- // pinMode(7, OUTPUT);
+  // pinMode(7, OUTPUT);
 
   //Digital pins => PWM pins
   pinMode(3, OUTPUT);
   pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
-
-  //Timer1.initialize(100);
-  //Timer1.attachInterrupt(timerSerial);
 }
 void serialEvent()
 {
@@ -529,81 +518,37 @@ void serialEvent()
   serialCollector.start();
 }
 
-void LED_LIGHT_CONTROL(int pin, boolean isRun)
-{
-  if (isRun) digitalWrite(pin, HIGH);
-  else digitalWrite(pin, LOW);
-}
-
-void LED_LIGHT_RUN()
-{
-  LED_LIGHT_CONTROL(DIGITAL_PINS::TWO,g_LedLightFlag[DIGITAL_PINS::TWO]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::THREE,g_LedLightFlag[DIGITAL_PINS::THREE]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::FOUR,g_LedLightFlag[DIGITAL_PINS::FOUR]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::FIVE,g_LedLightFlag[DIGITAL_PINS::FIVE]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::SIX,g_LedLightFlag[DIGITAL_PINS::SIX]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::SEVEN,g_LedLightFlag[DIGITAL_PINS::SEVEN]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::EIGHT,g_LedLightFlag[DIGITAL_PINS::EIGHT]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::NINE,g_LedLightFlag[DIGITAL_PINS::NINE]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::TEN,g_LedLightFlag[DIGITAL_PINS::TEN]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::ELEVEN,g_LedLightFlag[DIGITAL_PINS::ELEVEN]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::TWELVE,g_LedLightFlag[DIGITAL_PINS::TWELVE]);
-  LED_LIGHT_CONTROL(DIGITAL_PINS::THIRTEEN,g_LedLightFlag[DIGITAL_PINS::THIRTEEN]);
-}
-
 void loop() {
   deviceRun();
 }
 
+Command * cmdProgram = NULL;
+
 void deviceRun() {
-  LED_LIGHT_RUN();
-  allFading(); 
-}
-
-void allFading()
-{
-  for (int fadeValue = 0; fadeValue <= 255; fadeValue += 5) {
-    if (g_FadeFlag[DIGITAL_PINS::THREE])
-      analogWrite(DIGITAL_PINS::THREE, fadeValue);
-    if (g_FadeFlag[DIGITAL_PINS::FIVE])
-      analogWrite(DIGITAL_PINS::FIVE, fadeValue);
-    if (g_FadeFlag[DIGITAL_PINS::SIX])
-      analogWrite(DIGITAL_PINS::SIX, fadeValue);
-    delay(30);
+  switch (g_Cmd)
+  {
+  case led::ON:
+  case led::OFF:
+    if (cmdProgram == NULL) {
+      cmdProgram = new LED_LIGHT();
+    }
+    else {
+      delete cmdProgram;
+      cmdProgram = new LED_LIGHT();
+    }
+    break;
+  case led::FADE_START:
+  case led::FADE_END:
+    if (cmdProgram == NULL) {
+      cmdProgram = new LED_FADE();
+    }
+    else {
+      delete cmdProgram;
+      cmdProgram = new LED_FADE();
+    }
+    break;
   }
-  for (int fadeValue = 255; fadeValue >= 0; fadeValue -= 5) {
-    if (g_FadeFlag[DIGITAL_PINS::THREE])
-      analogWrite(DIGITAL_PINS::THREE, fadeValue);
-    if (g_FadeFlag[DIGITAL_PINS::FIVE])
-      analogWrite(DIGITAL_PINS::FIVE, fadeValue);
-    if (g_FadeFlag[DIGITAL_PINS::SIX])
-      analogWrite(DIGITAL_PINS::SIX, fadeValue);
-    delay(30);
-  }
 
-}
-
-void FadingOne(int ledPin)
-{
-  for (int fadeValue = 0; fadeValue <= 255; fadeValue += 5) {
-    analogWrite(ledPin, fadeValue);
-    delay(30);
-  }
-  for (int fadeValue = 255; fadeValue >= 0; fadeValue -= 5) {
-    analogWrite(ledPin, fadeValue);
-    delay(30);
-  }
-}
-
-void fadingMulti(int pin, int& brightness, int& fadeAmount)
-{
-  analogWrite(pin, brightness);
-
-  // change the brightness for next time through the loop:
-  brightness = brightness + fadeAmount;
-
-  // reverse the direction of the fading at the ends of the fade:
-  if (brightness <= 0 || brightness >= 255) {
-    fadeAmount = -fadeAmount;
-  }
+  if (cmdProgram != NULL)
+    cmdProgram->execute();
 }
