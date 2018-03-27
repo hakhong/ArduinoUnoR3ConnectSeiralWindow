@@ -39,6 +39,7 @@ private:
   static int brightness;
   static int fadeAmount;
 public:
+  void control(int pin, boolean isRun);
   void execute();
 };
 
@@ -47,7 +48,11 @@ int LED_FADE::fadeAmount = 5;
 
 void LED_FADE::execute()
 {
-  if (g_FadeFlag[DIGITAL_PINS::THREE])
+  control(DIGITAL_PINS::THREE,g_FadeFlag[DIGITAL_PINS::THREE]);
+  control(DIGITAL_PINS::FIVE,g_FadeFlag[DIGITAL_PINS::FIVE]);
+  control(DIGITAL_PINS::SIX,g_FadeFlag[DIGITAL_PINS::SIX]);
+/*
+    if (g_FadeFlag[DIGITAL_PINS::THREE])
     analogWrite(DIGITAL_PINS::THREE, brightness);
   else
     analogWrite(DIGITAL_PINS::THREE, 0);
@@ -67,6 +72,23 @@ void LED_FADE::execute()
   if (brightness <= 0 || brightness >= 255) {
     fadeAmount = -fadeAmount;
   }
+  delay(30);
+*/
+}
+
+void LED_FADE::control(int pin, boolean isRun)
+{
+  if(isRun){
+    analogWrite(pin, brightness);
+  }else{
+    analogWrite(pin, 0);
+  }
+
+  brightness = brightness + fadeAmount;
+
+  if (brightness <= 0 || brightness >= 255) {
+     fadeAmount = -fadeAmount;
+  } 
   delay(30);
 }
 
@@ -149,7 +171,6 @@ public:
 
   /*
   7071500A03020407CS 프레임 구조
-
   7071은 header => 2byte
   50은 명령어(50 명령어는 LED ON 명령어) => 1byte
   0A는 프레임의 총 길이
