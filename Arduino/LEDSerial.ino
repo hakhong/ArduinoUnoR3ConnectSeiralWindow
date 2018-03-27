@@ -51,29 +51,6 @@ void LED_FADE::execute()
   control(DIGITAL_PINS::THREE,g_FadeFlag[DIGITAL_PINS::THREE]);
   control(DIGITAL_PINS::FIVE,g_FadeFlag[DIGITAL_PINS::FIVE]);
   control(DIGITAL_PINS::SIX,g_FadeFlag[DIGITAL_PINS::SIX]);
-/*
-    if (g_FadeFlag[DIGITAL_PINS::THREE])
-    analogWrite(DIGITAL_PINS::THREE, brightness);
-  else
-    analogWrite(DIGITAL_PINS::THREE, 0);
-
-  if (g_FadeFlag[DIGITAL_PINS::FIVE])
-    analogWrite(DIGITAL_PINS::FIVE, brightness);
-  else
-    analogWrite(DIGITAL_PINS::FIVE, 0);
-
-  if (g_FadeFlag[DIGITAL_PINS::SIX])
-    analogWrite(DIGITAL_PINS::SIX, brightness);
-  else
-    analogWrite(DIGITAL_PINS::SIX, 0);
-
-  brightness = brightness + fadeAmount;
-
-  if (brightness <= 0 || brightness >= 255) {
-    fadeAmount = -fadeAmount;
-  }
-  delay(30);
-*/
 }
 
 void LED_FADE::control(int pin, boolean isRun)

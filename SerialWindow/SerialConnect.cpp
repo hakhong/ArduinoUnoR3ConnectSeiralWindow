@@ -37,29 +37,13 @@ unsigned char g_cmd[][3][30] =
 	},
 };
 
-/*
-std::vector<char> vszkeyBuf;
 
-void inputKey()
-{
-	while (1)
-	{
-		char cmd;
-		scanf("%c", &cmd);
-		vszkeyBuf.push_back(cmd);
-	}
-}
-*/
-
-// application reads from the specified serial port and reports the collected data
 int _tmain(int argc, _TCHAR* argv[])
 {
-	//std::thread first(inputKey);
-	
 	printf("Welcome to the serial test app!\n\n");
 
 
-	Serial* SP = new Serial("\\\\.\\COM3");    // adjust as needed
+	Serial* SP = new Serial("\\\\.\\COM3");   
 
 	if (SP->IsConnected()) {
 		printf("We're connected");
@@ -67,17 +51,15 @@ int _tmain(int argc, _TCHAR* argv[])
 		std::future<int> read = std::async(std::launch::async, [&SP] { 
 			int i;
 
-			char incomingData[513] = "";			// don't forget to pre-allocate memory
-													//printf("%s\n",incomingData);
+			char incomingData[513] = "";
+													
 			int dataLength = 512;
 			int readResult = 0;
 
 			while (SP->IsConnected()) {
 					readResult = SP->ReadData(incomingData, dataLength);
-					// printf("Bytes read: (0 means no data available) %i\n",readResult);
 					incomingData[readResult] = 0;
 					printf("%s", incomingData);
-					//Sleep(300);
 					Sleep(200);
 			}
 			return 1;
@@ -88,14 +70,6 @@ int _tmain(int argc, _TCHAR* argv[])
 				unsigned char sendData[80] = "";
 
 				char cmd;
-				
-				/*
-				if (vszkeyBuf.size() > 0)
-				{
-					cmd = vszkeyBuf.at(vszkeyBuf.size()-1);
-					vszkeyBuf.pop_back();
-				}
-				*/
 				scanf("%c", &cmd);
 
 				int szCmd = sizeof(g_cmd) / sizeof(g_cmd[0]);
@@ -161,7 +135,5 @@ int _tmain(int argc, _TCHAR* argv[])
 		});
 
 	}
-
-	//first.join();
 	return 0;
 }
